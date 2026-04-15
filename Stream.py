@@ -1,32 +1,32 @@
 import streamlit as st
 import pandas as pd
-import pickle
+import joblib
+import os
 
-# Load saved artifacts
 @st.cache_resource
 def load_models():
-    with open("gb_classifier.pkl", "rb") as f:
-        clf = pickle.load(f)
-    with open("gb_regressor.pkl", "rb") as f:
-        reg = pickle.load(f)
-    with open("kmeans_model.pkl", "rb") as f:
-        kmeans = pickle.load(f)
-    with open("features.pkl", "rb") as f:
-        features = pickle.load(f)
+    base_path = os.path.dirname(__file__)
+    try:
+        clf = joblib.load(os.path.join(base_path, "gb_classifier.pkl"))
+        reg = joblib.load(os.path.join(base_path, "gb_regressor.pkl"))
+        kmeans = joblib.load(os.path.join(base_path, "kmeans_model.pkl"))
+        features = joblib.load(os.path.join(base_path, "features.pkl"))
+    except Exception as e:
+        st.error(f"Model load failed: {e}")
+        st.stop()
     return clf, reg, kmeans, features
 
 clf, reg, kmeans, features = load_models()
 
 st.title("Trader Performance Predictor")
 
-# Input fields
 num_trades = st.number_input("Number of Trades", min_value=0.0)
 avg_size = st.number_input("Average Trade Size", min_value=0.0)
 win_rate = st.slider("Win Rate", 0.0, 1.0, 0.5)
 long_ratio = st.slider("Long Ratio", 0.0, 1.0, 0.5)
 value = st.number_input("Fear & Greed Index Value", min_value=0.0)
 
-# Create input dataframe
+
 input_data = pd.DataFrame([{
     "num_trades": num_trades,
     "avg_size": avg_size,
@@ -35,10 +35,8 @@ input_data = pd.DataFrame([{
     "value": value
 }])
 
-# Ensure correct feature order
 input_data = input_data[features]
 
-# Predictions
 if st.button("Predict"):
     profit_class = clf.predict(input_data)[0]
     pnl_pred = reg.predict(input_data)[0]
@@ -49,7 +47,7 @@ if st.button("Predict"):
     st.write(f"Predicted PnL: {pnl_pred:.2f}")
     st.write(f"Trader Cluster: {cluster}")
 
-# Optional: batch upload
+
 st.sidebar.header("Batch Prediction")
 file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
