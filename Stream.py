@@ -5,13 +5,13 @@ import pickle
 # Load saved artifacts
 @st.cache_resource
 def load_models():
-    with open("gb_classifier.pkl", "rb") as f:
+    with open("/Users/sneha_janu18/Downloads/gb_classifier.pkl", "rb") as f:
         clf = pickle.load(f)
-    with open("gb_regressor.pkl", "rb") as f:
+    with open("/Users/sneha_janu18/Downloads/gb_regressor.pkl", "rb") as f:
         reg = pickle.load(f)
-    with open("kmeans_model.pkl", "rb") as f:
+    with open("/Users/sneha_janu18/Downloads/kmeans_model.pkl", "rb") as f:
         kmeans = pickle.load(f)
-    with open("features.pkl", "rb") as f:
+    with open("/Users/sneha_janu18/Downloads/features.pkl", "rb") as f:
         features = pickle.load(f)
     return clf, reg, kmeans, features
 
