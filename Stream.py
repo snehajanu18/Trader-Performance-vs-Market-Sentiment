@@ -3,6 +3,7 @@ import pandas as pd
 import joblib
 import os
 
+# ---------- LOAD MODELS ----------
 @st.cache_resource
 def load_models():
     base_path = os.path.dirname(__file__)
@@ -18,6 +19,7 @@ def load_models():
 
 clf, reg, kmeans, features = load_models()
 
+# ---------- UI ----------
 st.title("Trader Performance Predictor")
 
 num_trades = st.number_input("Number of Trades", min_value=0.0)
@@ -26,7 +28,7 @@ win_rate = st.slider("Win Rate", 0.0, 1.0, 0.5)
 long_ratio = st.slider("Long Ratio", 0.0, 1.0, 0.5)
 value = st.number_input("Fear & Greed Index Value", min_value=0.0)
 
-
+# ---------- SINGLE INPUT ----------
 input_data = pd.DataFrame([{
     "num_trades": num_trades,
     "avg_size": avg_size,
@@ -35,29 +37,50 @@ input_data = pd.DataFrame([{
     "value": value
 }])
 
+# enforce feature order
 input_data = input_data[features]
 
+# ---------- PREDICTION ----------
 if st.button("Predict"):
     profit_class = clf.predict(input_data)[0]
     pnl_pred = reg.predict(input_data)[0]
-    cluster = kmeans.predict(input_data)[0]
+
+    # handle KMeans safely
+    try:
+        cluster = kmeans.predict(input_data)[0]
+    except Exception:
+        if hasattr(kmeans, "n_features_in_"):
+            st.error(f"KMeans expects {kmeans.n_features_in_} features, got {input_data.shape[1]}")
+        else:
+            st.error("KMeans prediction failed due to feature mismatch")
+        st.stop()
 
     st.subheader("Results")
     st.write(f"Profitable: {'Yes' if profit_class == 1 else 'No'}")
     st.write(f"Predicted PnL: {pnl_pred:.2f}")
     st.write(f"Trader Cluster: {cluster}")
 
-
+# ---------- BATCH ----------
 st.sidebar.header("Batch Prediction")
 file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
 if file:
     df = pd.read_csv(file)
-    df = df[features]
+
+    try:
+        df = df[features]
+    except Exception:
+        st.error("Uploaded CSV does not match required features")
+        st.stop()
 
     df["Predicted_Profit"] = clf.predict(df)
     df["Predicted_PnL"] = reg.predict(df)
-    df["Cluster"] = kmeans.predict(df)
+
+    try:
+        df["Cluster"] = kmeans.predict(df)
+    except Exception:
+        st.error("KMeans failed due to feature mismatch")
+        st.stop()
 
     st.write(df)
 
