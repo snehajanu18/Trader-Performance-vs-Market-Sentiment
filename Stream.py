@@ -3,21 +3,20 @@ import pandas as pd
 import joblib
 import os
 
-# ---------- LOAD MODELS ----------
+# ---------- LOAD ----------
 @st.cache_resource
 def load_models():
     base_path = os.path.dirname(__file__)
-    try:
-        clf = joblib.load(os.path.join(base_path, "gb_classifier.pkl"))
-        reg = joblib.load(os.path.join(base_path, "gb_regressor.pkl"))
-        kmeans = joblib.load(os.path.join(base_path, "kmeans_model.pkl"))
-        features = joblib.load(os.path.join(base_path, "features.pkl"))
-    except Exception as e:
-        st.error(f"Model load failed: {e}")
-        st.stop()
+    clf = joblib.load(os.path.join(base_path, "gb_classifier.pkl"))
+    reg = joblib.load(os.path.join(base_path, "gb_regressor.pkl"))
+    kmeans = joblib.load(os.path.join(base_path, "kmeans_model.pkl"))
+    features = joblib.load(os.path.join(base_path, "features.pkl"))
     return clf, reg, kmeans, features
 
 clf, reg, kmeans, features = load_models()
+
+# FIX: define kmeans features manually (remove one feature)
+kmeans_features = features[:-1]   # assumes last feature not used in kmeans
 
 # ---------- UI ----------
 st.title("Trader Performance Predictor")
@@ -28,7 +27,7 @@ win_rate = st.slider("Win Rate", 0.0, 1.0, 0.5)
 long_ratio = st.slider("Long Ratio", 0.0, 1.0, 0.5)
 value = st.number_input("Fear & Greed Index Value", min_value=0.0)
 
-# ---------- SINGLE INPUT ----------
+# ---------- INPUT ----------
 input_data = pd.DataFrame([{
     "num_trades": num_trades,
     "avg_size": avg_size,
@@ -37,23 +36,16 @@ input_data = pd.DataFrame([{
     "value": value
 }])
 
-# enforce feature order
+# correct order
 input_data = input_data[features]
 
-# ---------- PREDICTION ----------
+# ---------- PREDICT ----------
 if st.button("Predict"):
     profit_class = clf.predict(input_data)[0]
     pnl_pred = reg.predict(input_data)[0]
 
-    # handle KMeans safely
-    try:
-        cluster = kmeans.predict(input_data)[0]
-    except Exception:
-        if hasattr(kmeans, "n_features_in_"):
-            st.error(f"KMeans expects {kmeans.n_features_in_} features, got {input_data.shape[1]}")
-        else:
-            st.error("KMeans prediction failed due to feature mismatch")
-        st.stop()
+    # FIX: use only kmeans features
+    cluster = kmeans.predict(input_data[kmeans_features])[0]
 
     st.subheader("Results")
     st.write(f"Profitable: {'Yes' if profit_class == 1 else 'No'}")
@@ -66,21 +58,11 @@ file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
 if file:
     df = pd.read_csv(file)
-
-    try:
-        df = df[features]
-    except Exception:
-        st.error("Uploaded CSV does not match required features")
-        st.stop()
+    df = df[features]
 
     df["Predicted_Profit"] = clf.predict(df)
     df["Predicted_PnL"] = reg.predict(df)
-
-    try:
-        df["Cluster"] = kmeans.predict(df)
-    except Exception:
-        st.error("KMeans failed due to feature mismatch")
-        st.stop()
+    df["Cluster"] = kmeans.predict(df[kmeans_features])
 
     st.write(df)
 
