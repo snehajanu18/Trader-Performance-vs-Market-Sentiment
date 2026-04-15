@@ -16,7 +16,7 @@ def load_models():
 clf, reg, kmeans, features = load_models()
 
 # FIX: define kmeans features manually (remove one feature)
-kmeans_features = features[:-1]   # assumes last feature not used in kmeans
+kmeans_features = ['num_trades', 'avg_size', 'win_rate', 'long_ratio']   # assumes last feature not used in kmeans
 
 # ---------- UI ----------
 st.title("Trader Performance Predictor")
